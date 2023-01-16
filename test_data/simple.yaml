@@ -1,0 +1,27 @@
+openapi: '3.0.2'
+
+info:
+  title: Simple project
+  description: The project is simple example of OpanAPI spec in yaml
+  version: 3.55.144
+  termsOfService: http://some.strange.com/legal-notice/
+  contact:
+    name: No real company
+    url: http://some.strange.com
+    email: info@some.strange.com
+  license:
+    name: License
+    url: http://some.strange.com/legal-notice/license.txt
+
+  x-ExtensionBool: true
+  x-String: api
+
+servers:
+  - url: '{protocol}://localhost:{port}/api/v1.0'
+    variables:
+      protocol:
+        enum:
+          - http
+        default: http
+      port:
+        default: '8080'

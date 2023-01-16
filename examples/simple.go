@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"yamlwalker"
+	"github.com/yuriamw/yamlwalker"
 
 	"gopkg.in/yaml.v3"
 )
@@ -14,7 +14,7 @@ var (
 )
 
 func init() {
-	fileName = flag.String("f", "../spec.yaml", "File name")
+	fileName = flag.String("f", "test_data/simple.yaml", "File name")
 
 	flag.Parse()
 }
