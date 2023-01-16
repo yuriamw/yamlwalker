@@ -1,6 +1,9 @@
 package yamlwalker
 
 import (
+	"fmt"
+	"strings"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -14,6 +17,10 @@ type yamlKey struct {
 	style yaml.Style
 	name  string
 }
+
+const (
+	Separator string = "."
+)
 
 func NewYamlWalker() *YamlWalker {
 	return &YamlWalker{
@@ -41,4 +48,26 @@ func (walker *YamlWalker) MarshalYAML() (interface{}, error) {
 
 func (walker *YamlWalker) Value() interface{} {
 	return walker.data
+}
+
+func (walker *YamlWalker) Get(path string) interface{} {
+	if len(path) == 0 {
+		return walker.Value()
+	}
+
+	parts := strings.Split(path, Separator)
+	m := walker.data.(map[string]*YamlWalker)
+	var node *YamlWalker
+	for i := 0; i < len(parts); i++ {
+		log(fmt.Sprintf("p:%v\n", parts[i]))
+		var ok bool
+		node, ok = m[parts[i]]
+		if !ok {
+			return nil
+		}
+		if i < len(parts)-1 {
+			m = node.data.(map[string]*YamlWalker)
+		}
+	}
+	return node.Value()
 }

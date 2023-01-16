@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
 	"github.com/yuriamw/yamlwalker"
 
 	"gopkg.in/yaml.v3"
@@ -58,6 +59,8 @@ func main() {
 			fmt.Printf("S:%T:%+v\n", url, url)
 		}
 	}
+
+	fmt.Printf("G:%+v\n", yw.Get("another.something.interresting"))
 
 	out, err := yaml.Marshal(yw)
 	if err != nil {
