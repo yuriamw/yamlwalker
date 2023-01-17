@@ -1,10 +1,16 @@
 package yamlwalker
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"gopkg.in/yaml.v3"
+)
+
+var (
+	ErrNotFound    = errors.New("not found")
+	ErrInvalidType = errors.New("invalid type conversion")
 )
 
 type YamlWalker struct {
@@ -50,24 +56,42 @@ func (walker *YamlWalker) Value() interface{} {
 	return walker.data
 }
 
-func (walker *YamlWalker) Get(path string) interface{} {
+func (walker *YamlWalker) GetValue(path string) interface{} {
+	node, err := walker.Get(path)
+	if err != nil {
+		return nil
+	}
+	return node.Value()
+}
+
+func (walker *YamlWalker) Get(path string) (node *YamlWalker, err error) {
 	if len(path) == 0 {
-		return walker.Value()
+		node = walker
+		return
 	}
 
 	parts := strings.Split(path, Separator)
-	m := walker.data.(map[string]*YamlWalker)
-	var node *YamlWalker
+	m, ok := walker.data.(map[string]*YamlWalker)
+	if !ok {
+		err = ErrInvalidType
+		return
+	}
 	for i := 0; i < len(parts); i++ {
 		log(fmt.Sprintf("p:%v\n", parts[i]))
 		var ok bool
 		node, ok = m[parts[i]]
 		if !ok {
-			return nil
+			err = ErrNotFound
+			return
 		}
 		if i < len(parts)-1 {
-			m = node.data.(map[string]*YamlWalker)
+			m, ok = node.data.(map[string]*YamlWalker)
+			if !ok {
+				err = ErrInvalidType
+				return
+			}
 		}
 	}
-	return node.Value()
+
+	return
 }

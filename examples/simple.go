@@ -60,7 +60,7 @@ func main() {
 		}
 	}
 
-	fmt.Printf("G:%+v\n", yw.Get("another.something.interresting"))
+	fmt.Printf("G:%+v\n", yw.GetValue("another.something.interresting"))
 
 	out, err := yaml.Marshal(yw)
 	if err != nil {
