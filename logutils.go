@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	enableLogs = true
+	enableLogs = false
 )
 
 func log(str string) {
