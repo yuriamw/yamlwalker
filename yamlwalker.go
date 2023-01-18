@@ -11,6 +11,7 @@ import (
 var (
 	ErrNotFound    = errors.New("not found")
 	ErrInvalidType = errors.New("invalid type conversion")
+	ErrKeyMismatch = errors.New("list of keys does not match map keys")
 )
 
 type YamlWalker struct {

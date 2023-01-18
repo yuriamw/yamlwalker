@@ -15,16 +15,24 @@ func (walker *YamlWalker) encode() (node *yaml.Node, err error) {
 		node, err = walker.encodeSeq()
 		return
 	default:
-		node, err = walker.encodeScalar()
+		node = walker.encodeScalar()
 		return
 	}
 }
 
 func (walker *YamlWalker) encodeMap() (node *yaml.Node, err error) {
 	x := walker.data.(map[string]*YamlWalker)
+
+	numKeys := len(walker.keys)
+	numKeysInMap := len(x)
+	if numKeys != numKeysInMap {
+		err = ErrKeyMismatch
+		return
+	}
+
 	count := len(x) * 2
 
-	node = &yaml.Node{
+	n := &yaml.Node{
 		Kind:    yaml.MappingNode,
 		Content: make([]*yaml.Node, count),
 		Style:   walker.style,
@@ -39,16 +47,23 @@ func (walker *YamlWalker) encodeMap() (node *yaml.Node, err error) {
 			Value: key.name,
 			Style: key.style,
 		}
-		node.Content[i] = keyNode
+		n.Content[i] = keyNode
 
-		value := x[key.name]
+		value, found := x[key.name]
+		if !found {
+			err = ErrKeyMismatch
+			fmt.Printf("%v\n", err)
+			return
+		}
 		content, e := value.encode()
-		if err != nil {
+		if e != nil {
 			err = e
 			return
 		}
-		node.Content[i+1] = content
+		n.Content[i+1] = content
 	}
+
+	node = n
 
 	return
 }
@@ -74,18 +89,13 @@ func (walker *YamlWalker) encodeSeq() (node *yaml.Node, err error) {
 	return
 }
 
-func (walker *YamlWalker) encodeScalar() (node *yaml.Node, err error) {
+func (walker *YamlWalker) encodeScalar() (node *yaml.Node) {
 	node = &yaml.Node{
 		Kind:  yaml.ScalarNode,
 		Style: walker.style,
 	}
 
-	var ok bool
-	node.Value, ok = walker.data.(string)
-	if !ok {
-		err = fmt.Errorf("conversion from type %T failed", walker.data)
-		return
-	}
+	node.Value = fmt.Sprintf("%v", walker.data)
 
 	return
 }

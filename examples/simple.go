@@ -60,7 +60,10 @@ func main() {
 		}
 	}
 
-	fmt.Printf("G:%+v\n", yw.GetValue("another.something.interresting"))
+	fmt.Printf("G:%+v\n", yw.GetValue("openapi"))
+	fmt.Printf("G:%+v\n", yw.GetValue("info.description"))
+	fmt.Printf("G:%+v\n", yw.GetValue("info.contact.name"))
+	fmt.Printf("G:%+v\n", yw.GetValue("not exists"))
 
 	out, err := yaml.Marshal(yw)
 	if err != nil {

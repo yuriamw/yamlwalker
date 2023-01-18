@@ -50,7 +50,7 @@ func (walker *YamlWalker) decodeMap(node *yaml.Node) (keys []yamlKey, data map[s
 		keyStyle := contentKey.Style
 		contentValue := node.Content[contentIdx+1]
 		value, e := NewYamlWalker().decode(contentValue)
-		if err != nil {
+		if e != nil {
 			err = e
 			return
 		}
