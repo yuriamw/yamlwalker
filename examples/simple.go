@@ -65,6 +65,10 @@ func main() {
 	fmt.Printf("G:%+v\n", yw.GetValue("info.contact.name"))
 	fmt.Printf("G:%+v\n", yw.GetValue("not exists"))
 
+	fmt.Printf("Update node '%s' value... ", "info.contact.name")
+	yw.SetValue("info.contact.name", "My Cool Company")
+	fmt.Printf("%+v\n", yw.GetValue("info.contact.name"))
+
 	out, err := yaml.Marshal(yw)
 	if err != nil {
 		panic(err)

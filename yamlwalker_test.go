@@ -344,6 +344,91 @@ func (suite *YamlWalkerTestSuite) TestUnmarshal() {
 	}
 }
 
+func (suite *YamlWalkerTestSuite) TestFindNode() {
+	y := &YamlWalker{}
+	_, err := y.findNode([]string{})
+	suite.Assert().EqualError(err, ErrInvalidType.Error())
+
+	y = &YamlWalker{
+		data: map[string]*YamlWalker{
+			"first-0": {
+				data: map[string]*YamlWalker{
+					"first-1": {
+						data: map[string]*YamlWalker{
+							"first-2": {
+								data: 1,
+							},
+						},
+						keys: []yamlKey{
+							{name: "first-2"},
+						},
+					},
+					"second-1": {
+						data: 4,
+					},
+				},
+				keys: []yamlKey{
+					{name: "first-1"},
+					{name: "second-1"},
+				},
+			},
+			"second-0": {
+				data: 2,
+			},
+			"third-0": {
+				data: 3,
+			},
+		},
+		keys: []yamlKey{
+			{name: "first-0"},
+			{name: "second-0"},
+			{name: "third-0"},
+		},
+	}
+
+	n, err := y.findNode([]string{"first-0"})
+	suite.Assert().Nil(err)
+	suite.Assert().NotNil(n)
+	suite.Assert().Equal(2, len(n.keys))
+	suite.Assert().Equal("first-1", n.keys[0].name)
+	suite.Assert().Equal("second-1", n.keys[1].name)
+
+	n, err = y.findNode([]string{"second-0"})
+	suite.Assert().Nil(err)
+	suite.Assert().NotNil(n)
+	suite.Assert().Equal(0, len(n.keys))
+	i, ok := n.data.(int)
+	suite.Assert().True(ok)
+	suite.Assert().Equal(2, i)
+
+	n, err = y.findNode([]string{"third-0"})
+	suite.Assert().Nil(err)
+	suite.Assert().NotNil(n)
+	suite.Assert().Equal(0, len(n.keys))
+	i, ok = n.data.(int)
+	suite.Assert().True(ok)
+	suite.Assert().Equal(3, i)
+
+	n, err = y.findNode([]string{"first-0", "first-1"})
+	suite.Assert().Nil(err)
+	suite.Assert().NotNil(n)
+	suite.Assert().Equal(1, len(n.keys))
+	suite.Assert().Equal("first-2", n.keys[0].name)
+
+	n, err = y.findNode([]string{"first-0", "first-1", "first-2"})
+	suite.Assert().Nil(err)
+	suite.Assert().NotNil(n)
+	suite.Assert().Equal(0, len(n.keys))
+	i, ok = n.data.(int)
+	suite.Assert().True(ok)
+	suite.Assert().Equal(1, i)
+
+	_, err = y.findNode([]string{"first-0", "invalid"})
+	suite.Assert().EqualError(err, ErrNotFound.Error())
+	_, err = y.findNode([]string{"second-0", "second-1", "second-2"})
+	suite.Assert().EqualError(err, ErrInvalidType.Error())
+}
+
 func (suite *YamlWalkerTestSuite) TestGet() {
 	y := NewYamlWalker()
 	err := yaml.Unmarshal(xFile, y)
@@ -496,4 +581,457 @@ func (suite *YamlWalkerTestSuite) TestGetError() {
 			suite.Assert().Nil(value)
 		})
 	}
+}
+
+func (suite *YamlWalkerTestSuite) TestSet() {
+	y := &YamlWalker{
+		data: map[string]*YamlWalker{
+			"first": {data: 1},
+			"second": {
+				data: map[string]*YamlWalker{
+					"child": {
+						data: 2,
+					},
+				},
+				keys: []yamlKey{
+					{name: "child"},
+				},
+			},
+		},
+		keys: []yamlKey{
+			{name: "first"},
+			{name: "second"},
+		},
+	}
+
+	n := NewYamlWalker()
+	n.Update(3)
+	err := y.Set("second.child", n)
+	suite.Assert().Nil(err)
+	m := y.Value().(map[string]*YamlWalker)
+	d, found := m["second"]
+	suite.Assert().True(found)
+	d, found = d.Value().(map[string]*YamlWalker)["child"]
+	suite.Assert().True(found)
+	suite.Assert().Equal(3, d.Value())
+	y.SetValue("first", 5)
+	m = y.Value().(map[string]*YamlWalker)
+	d, found = m["first"]
+	suite.Assert().True(found)
+	i, found := d.Value().(int)
+	suite.Assert().True(found)
+	suite.Assert().Equal(5, i)
+	y.SetValue("invalid", 5)
+	m = y.Value().(map[string]*YamlWalker)
+	_, found = m["invalid"]
+	suite.Assert().False(found)
+}
+
+func (suite *YamlWalkerTestSuite) TestSetError() {
+	y := &YamlWalker{
+		data: map[string]*YamlWalker{
+			"first":  {data: 1},
+			"second": {data: 2},
+		},
+		keys: []yamlKey{
+			{name: "first"},
+			{name: "second"},
+		},
+	}
+
+	n := NewYamlWalker()
+	n.Update(3)
+	err := y.Set("second.child", n)
+	suite.Assert().EqualError(err, ErrNotFound.Error())
+}
+
+func (suite *YamlWalkerTestSuite) TestSetInArray() {
+	y := &YamlWalker{
+		data: map[string]*YamlWalker{
+			"first": {
+				data: []*YamlWalker{
+					{
+						data: map[string]*YamlWalker{
+							"level": {
+								data: 1,
+							},
+							"value": {
+								data: "abc",
+							},
+						},
+						keys: []yamlKey{
+							{name: "level"},
+							{name: "value"},
+						},
+					},
+					{
+						data: map[string]*YamlWalker{
+							"level": {
+								data: 2,
+							},
+							"value": {
+								data: "def",
+							},
+						},
+						keys: []yamlKey{
+							{name: "level"},
+							{name: "value"},
+						},
+					},
+				},
+			},
+			"second": {data: 2},
+		},
+		keys: []yamlKey{
+			{name: "first"},
+			{name: "second"},
+		},
+	}
+
+	data := []struct {
+		level int
+		value string
+	}{
+		{
+			level: 10,
+			value: "ABC",
+		},
+		{
+			level: 20,
+			value: "DEF",
+		},
+	}
+
+	iface, err := y.Get("first")
+	suite.Assert().Nil(err)
+	array, ok := iface.Value().([]*YamlWalker)
+	suite.Assert().True(ok)
+	suite.Assert().Equal(2, len(array))
+
+	for i := range data {
+		nl := NewYamlWalker()
+		nl.Update(data[i].level)
+		nv := NewYamlWalker()
+		nv.Update(data[i].value)
+
+		err := array[i].Set("level", nl)
+		suite.Assert().Nil(err)
+		err = array[i].Set("value", nv)
+		suite.Assert().Nil(err)
+	}
+
+	m, ok := y.data.(map[string]*YamlWalker)
+	suite.Assert().True(ok)
+	a, ok := m["first"].data.([]*YamlWalker)
+	suite.Assert().True(ok)
+	suite.Assert().Equal(2, len(a))
+
+	for i := range a {
+		m, ok := a[i].data.(map[string]*YamlWalker)
+		suite.Assert().True(ok)
+		l, found := m["level"]
+		suite.Assert().True(found)
+		lvl, ok := l.data.(int)
+		suite.Assert().True(ok)
+		suite.Assert().Equal(data[i].level, lvl)
+		v, found := m["value"]
+		suite.Assert().True(found)
+		val, ok := v.data.(string)
+		suite.Assert().True(ok)
+		suite.Assert().Equal(data[i].value, val)
+	}
+}
+
+func (suite *YamlWalkerTestSuite) TestDelete() {
+	getData := func() *YamlWalker {
+		return &YamlWalker{
+			data: map[string]*YamlWalker{
+				"first": {
+					data: map[string]*YamlWalker{
+						"first-subitem": {
+							data: 1,
+						},
+					},
+					keys: []yamlKey{{name: "first-subitem"}},
+				},
+				"second": {
+					data: map[string]*YamlWalker{
+						"second-submap-1": {
+							data: map[string]*YamlWalker{
+								"second-subitem-1": {
+									data: 1,
+								},
+							},
+							keys: []yamlKey{{name: "second-subitem-1"}},
+						},
+						"second-submap-2": {
+							data: map[string]*YamlWalker{
+								"second-subitem-2-1": {
+									data: 21,
+								},
+								"second-subitem-2-2": {
+									data: 22,
+								},
+								"second-subitem-2-3": {
+									data: 23,
+								},
+							},
+							keys: []yamlKey{
+								{name: "second-subitem-2-1"},
+								{name: "second-subitem-2-2"},
+								{name: "second-subitem-2-3"},
+							},
+						},
+						"second-submap-3": {
+							data: map[string]*YamlWalker{
+								"second-subitem-3": {
+									data: 2,
+								},
+							},
+							keys: []yamlKey{{name: "second-subitem-3"}},
+						},
+					},
+					keys: []yamlKey{
+						{name: "second-submap-1"},
+						{name: "second-submap-2"},
+						{name: "second-submap-3"},
+					},
+				},
+			},
+			keys: []yamlKey{
+				{name: "first"},
+				{name: "second"},
+			},
+		}
+	}
+
+	y := getData()
+	err := y.Delete("")
+	suite.Assert().EqualError(err, ErrKeyMismatch.Error())
+
+	y = getData()
+	err = y.Delete("first")
+	suite.Assert().Nil(err)
+	m, found := y.data.(map[string]*YamlWalker)
+	suite.Assert().True(found)
+	_, found = m["first"]
+	suite.Assert().False(found)
+	_, found = m["second"]
+	suite.Assert().True(found)
+
+	y = getData()
+	err = y.Delete("second")
+	suite.Assert().Nil(err)
+	m, found = y.data.(map[string]*YamlWalker)
+	suite.Assert().True(found)
+	_, found = m["second"]
+	suite.Assert().False(found)
+	_, found = m["first"]
+	suite.Assert().True(found)
+
+	y = getData()
+	err = y.Delete("second.second-submap-2")
+	suite.Assert().Nil(err)
+	m, found = y.data.(map[string]*YamlWalker)
+	suite.Assert().True(found)
+	_, found = m["first"]
+	suite.Assert().True(found)
+	d, found := m["second"].data.(map[string]*YamlWalker)
+	suite.Assert().True(found)
+	_, found = d["second-submap-1"]
+	suite.Assert().True(found)
+	_, found = d["second-submap-2"]
+	suite.Assert().False(found)
+	_, found = d["second-submap-3"]
+	suite.Assert().True(found)
+
+	y = getData()
+	err = y.Delete("second.second-submap-2.second-subitem-2-2")
+	suite.Assert().Nil(err)
+	m, found = y.data.(map[string]*YamlWalker)
+	suite.Assert().True(found)
+	_, found = m["first"]
+	suite.Assert().True(found)
+	d, found = m["second"].data.(map[string]*YamlWalker)
+	suite.Assert().True(found)
+	_, found = d["second-submap-1"]
+	suite.Assert().True(found)
+	_, found = d["second-submap-2"]
+	suite.Assert().True(found)
+	_, found = d["second-submap-3"]
+	suite.Assert().True(found)
+	d, found = d["second-submap-2"].data.(map[string]*YamlWalker)
+	suite.Assert().True(found)
+	_, found = d["second-subitem-2-1"]
+	suite.Assert().True(found)
+	_, found = d["second-subitem-2-2"]
+	suite.Assert().False(found)
+	_, found = d["second-subitem-2-3"]
+	suite.Assert().True(found)
+
+	y = getData()
+	err = y.Delete("third.something")
+	suite.Assert().EqualError(err, ErrNotFound.Error())
+	err = y.Delete("first.something")
+	suite.Assert().EqualError(err, ErrNotFound.Error())
+	err = y.Delete("second.second-submap-2.second-subitem-2-2.something")
+	suite.Assert().EqualError(err, ErrInvalidType.Error())
+}
+
+func (suite *YamlWalkerTestSuite) TestAppend() {
+	getData := func() *YamlWalker {
+		return &YamlWalker{
+			data: map[string]*YamlWalker{
+				"first": {
+					data: map[string]*YamlWalker{
+						"first-subitem": {
+							data: 1,
+						},
+					},
+					keys: []yamlKey{{name: "first-subitem"}},
+				},
+				"second": {
+					data: map[string]*YamlWalker{
+						"second-submap-1": {
+							data: map[string]*YamlWalker{
+								"second-subitem-1": {
+									data: 1,
+								},
+							},
+							keys: []yamlKey{{name: "second-subitem-1"}},
+						},
+						"second-submap-2": {
+							data: map[string]*YamlWalker{
+								"second-subitem-2-1": {
+									data: 21,
+								},
+								"second-subitem-2-2": {
+									data: 22,
+								},
+								"second-subitem-2-3": {
+									data: 23,
+								},
+							},
+							keys: []yamlKey{
+								{name: "second-subitem-2-1"},
+								{name: "second-subitem-2-2"},
+								{name: "second-subitem-2-3"},
+							},
+						},
+						"second-submap-3": {
+							data: map[string]*YamlWalker{
+								"second-subitem-3": {},
+							},
+							keys: []yamlKey{{name: "second-subitem-3"}},
+						},
+					},
+					keys: []yamlKey{
+						{name: "second-submap-1"},
+						{name: "second-submap-2"},
+						{name: "second-submap-3"},
+					},
+				},
+			},
+			keys: []yamlKey{
+				{name: "first"},
+				{name: "second"},
+			},
+		}
+	}
+
+	y := getData()
+	n := &YamlWalker{
+		data: 1,
+	}
+	err := y.Append("", n)
+	suite.Assert().EqualError(err, ErrKeyMismatch.Error())
+
+	y = getData()
+	err = y.Append("third", n)
+	suite.Assert().Nil(err)
+	m, found := y.data.(map[string]*YamlWalker)
+	suite.Assert().True(found)
+	suite.Assert().Equal(3, len(m))
+	_, found = m["first"]
+	suite.Assert().True(found)
+	_, found = m["second"]
+	suite.Assert().True(found)
+	v, found := m["third"]
+	suite.Assert().True(found)
+	i, found := v.data.(int)
+	suite.Assert().True(found)
+	suite.Assert().Equal(1, i)
+
+	y = getData()
+	err = y.Append("first.appended", n)
+	suite.Assert().Nil(err)
+	m, found = y.data.(map[string]*YamlWalker)
+	suite.Assert().True(found)
+	_, found = m["first"]
+	suite.Assert().True(found)
+	_, found = m["second"]
+	suite.Assert().True(found)
+	d, found := m["first"].data.(map[string]*YamlWalker)
+	suite.Assert().True(found)
+	v, found = d["appended"]
+	suite.Assert().True(found)
+	i, found = v.data.(int)
+	suite.Assert().True(found)
+	suite.Assert().Equal(1, i)
+
+	y = getData()
+	err = y.Append("second.second-submap-2.second-subitem-2-4", n)
+	suite.Assert().Nil(err)
+	m, found = y.data.(map[string]*YamlWalker)
+	suite.Assert().True(found)
+	_, found = m["first"]
+	suite.Assert().True(found)
+	_, found = m["second"]
+	suite.Assert().True(found)
+	d, found = m["second"].data.(map[string]*YamlWalker)
+	suite.Assert().True(found)
+	d, found = d["second-submap-2"].data.(map[string]*YamlWalker)
+	suite.Assert().True(found)
+	v, found = d["second-subitem-2-4"]
+	suite.Assert().True(found)
+	i, found = v.data.(int)
+	suite.Assert().True(found)
+	suite.Assert().Equal(1, i)
+
+	err = y.Append("second.second-submap-3.second-subitem-3.appended", n, yaml.SingleQuotedStyle)
+	suite.Assert().Nil(err)
+	m, found = y.data.(map[string]*YamlWalker)
+	suite.Assert().True(found)
+	_, found = m["first"]
+	suite.Assert().True(found)
+	_, found = m["second"]
+	suite.Assert().True(found)
+	d, found = m["second"].data.(map[string]*YamlWalker)
+	suite.Assert().True(found)
+	d, found = d["second-submap-3"].data.(map[string]*YamlWalker)
+	suite.Assert().True(found)
+	d, found = d["second-subitem-3"].data.(map[string]*YamlWalker)
+	suite.Assert().True(found)
+	v, found = d["appended"]
+	suite.Assert().True(found)
+	i, found = v.data.(int)
+	suite.Assert().True(found)
+	suite.Assert().Equal(1, i)
+	d, found = m["second"].data.(map[string]*YamlWalker)
+	suite.Assert().True(found)
+	d, found = d["second-submap-3"].data.(map[string]*YamlWalker)
+	suite.Assert().True(found)
+	v, found = d["second-subitem-3"]
+	suite.Assert().True(found)
+	suite.Assert().Equal(1, len(v.keys))
+	suite.Assert().Equal("appended", v.keys[0].name)
+	suite.Assert().Equal(yaml.SingleQuotedStyle, v.keys[0].style)
+
+	y = getData()
+	err = y.Append("something.missing", n)
+	suite.Assert().EqualError(err, ErrNotFound.Error())
+	err = y.Append("second.second-submap-2", n)
+	suite.Assert().EqualError(err, ErrDuplicateKey.Error())
+	err = y.Append("second.second-submap-2.second-subitem-2-2.something", n)
+	suite.Assert().EqualError(err, ErrInvalidType.Error())
 }
