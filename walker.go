@@ -68,7 +68,7 @@ func (walker *YamlWalker) remove(parts []string, index int) error {
 func (walker *YamlWalker) insert(parts []string, index int, node *YamlWalker) error {
 	w, err := walker.findNode(parts)
 	if err != nil {
-		return ErrNotFound
+		return err
 	}
 
 	s, ok := w.data.([]*YamlWalker)
@@ -92,15 +92,15 @@ func (walker *YamlWalker) insert(parts []string, index int, node *YamlWalker) er
 }
 
 func (walker *YamlWalker) findNode(parts []string) (node *YamlWalker, err error) {
-	m, ok := walker.data.(map[string]*YamlWalker)
-	if !ok {
-		err = ErrInvalidType
-		return
-	}
-
 	n := walker
 	if len(parts) == 0 {
 		node = n
+		return
+	}
+
+	m, ok := walker.data.(map[string]*YamlWalker)
+	if !ok {
+		err = ErrInvalidType
 		return
 	}
 
