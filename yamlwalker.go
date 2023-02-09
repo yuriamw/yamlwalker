@@ -2,7 +2,6 @@ package yamlwalker
 
 import (
 	"errors"
-	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -12,6 +11,7 @@ var (
 	ErrInvalidType  = errors.New("invalid type conversion")
 	ErrKeyMismatch  = errors.New("list of keys does not match map keys")
 	ErrDuplicateKey = errors.New("duplicate key name")
+	ErrInvalidRange = errors.New("index out of bounds")
 )
 
 type YamlWalker struct {
@@ -56,6 +56,44 @@ func (walker *YamlWalker) MarshalYAML() (interface{}, error) {
 	return buffer, err
 }
 
+// AsMap returns children of the node specified by path
+// as map if node is yaml.MappingNode and err set to nil.
+// If path does not exists err set to ErrNotFound.
+// If the node is not yaml.MappingNode err set to ErrInvalidType.
+//
+// The map is usefull to iterate over the node children.
+// Do not insert, delete or change elements of map directly, use Append(), Delete() or Update() instead.
+func (walker *YamlWalker) AsMap(path string) (children map[string]*YamlWalker, err error) {
+	return walker.asMap(walker.splitPath(path))
+}
+
+// AsSlice returns children of the node specified by path
+// as slice if node is yaml.SequenceNode and err set to nil.
+// If the node is not yaml.SequenceNode err set to ErrInvalidType.
+//
+// The slice is usefull to iterate over the node children.
+// Do not insert, delete or change elements of slice directly, use Insert(), Remove() or Update() instead.
+func (walker *YamlWalker) AsSlice(path string) (children []*YamlWalker, err error) {
+	return walker.asSlice(walker.splitPath(path))
+}
+
+// Remove removes the item at the index from the slice of children.
+// If the node specified by path is yaml.SequenceNode the item at the index is removed
+// and err set to nil otherwise err set to ErrInvalidType.
+// If index is out of slice bounds err set to ErrInvalidRange.
+func (walker *YamlWalker) Remove(path string, index int) error {
+	return walker.remove(walker.splitPath(path), index)
+}
+
+// Insert inserts the node into the slice of children at the index.
+// If the item specified by path is yaml.SequenceNode the node inserted into the slice of children
+// at the index and err set to nil otherwise err set to ErrInvalidType.
+// If the index == len(children) the node is appnded at the end of slice.
+// If index is out of slice bounds err set to ErrInvalidRange.
+func (walker *YamlWalker) Insert(path string, index int, node *YamlWalker) error {
+	return walker.insert(walker.splitPath(path), index, node)
+}
+
 // Value returns the value of the node
 func (walker *YamlWalker) Value() interface{} {
 	return walker.data
@@ -93,9 +131,7 @@ func (walker *YamlWalker) Get(path string) (node *YamlWalker, err error) {
 		return
 	}
 
-	parts := strings.Split(path, Separator)
-
-	node, err = walker.findNode(parts)
+	node, err = walker.findNode(walker.splitPath(path))
 
 	return
 }
@@ -137,14 +173,12 @@ func (walker *YamlWalker) Append(path string, node *YamlWalker, keyStyle ...yaml
 		return ErrKeyMismatch
 	}
 
-	parts := strings.Split(path, Separator)
-
 	style := yaml.Style(0)
 	if len(keyStyle) > 0 {
 		style = keyStyle[0]
 	}
 
-	return walker.appendNode(parts, node, style)
+	return walker.appendNode(walker.splitPath(path), node, style)
 }
 
 // Delete deletes the node from the map at the path.
@@ -157,7 +191,5 @@ func (walker *YamlWalker) Delete(path string) error {
 		return ErrKeyMismatch
 	}
 
-	parts := strings.Split(path, Separator)
-
-	return walker.deleteNode(parts)
+	return walker.deleteNode(walker.splitPath(path))
 }
