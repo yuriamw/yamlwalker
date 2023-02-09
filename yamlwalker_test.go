@@ -205,7 +205,6 @@ func (suite *YamlWalkerTestSuite) TestMarshal() {
 
 	data, err := yaml.Marshal(y)
 	suite.Assert().Nil(err)
-	// fmt.Printf("---\n%s...\n", string(data))
 	suite.Assert().Equal(complexFile, data)
 }
 
@@ -344,6 +343,319 @@ func (suite *YamlWalkerTestSuite) TestUnmarshal() {
 	}
 }
 
+func (suite *YamlWalkerTestSuite) TestAsMap() {
+	y := &YamlWalker{
+		data: map[string]*YamlWalker{
+			"map": {
+				data: map[string]*YamlWalker{
+					"first": {
+						data: 1,
+					},
+					"second": {
+						data: 2,
+					},
+				},
+				keys: []yamlKey{
+					{name: "first"},
+					{name: "second"},
+				},
+			},
+		},
+		keys: []yamlKey{
+			{name: "map"},
+		},
+	}
+
+	tests := []struct {
+		name     string
+		key      string
+		count    int
+		children []string
+	}{
+		{
+			name:     "empty key",
+			key:      "",
+			count:    1,
+			children: []string{"map"},
+		},
+		{
+			name:     "map key",
+			key:      "map",
+			count:    2,
+			children: []string{"first", "second"},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		suite.Run(tc.name, func() {
+
+			m, err := y.AsMap(tc.key)
+			suite.Assert().Nil(err)
+			suite.Assert().Equal(tc.count, len(m))
+			for _, k := range tc.children {
+				_, found := m[k]
+				suite.Assert().True(found)
+			}
+		})
+	}
+
+	errTests := []struct {
+		name string
+		key  string
+		err  error
+	}{
+		{
+			name: "invalid type",
+			key:  "map.first",
+			err:  ErrInvalidType,
+		},
+		{
+			name: "not found as root",
+			key:  "invalid",
+			err:  ErrNotFound,
+		},
+		{
+			name: "not found as child",
+			key:  "map.invalid",
+			err:  ErrNotFound,
+		},
+	}
+
+	for _, tc := range errTests {
+		tc := tc
+		suite.Run(tc.name, func() {
+			_, err := y.AsMap(tc.key)
+			suite.Assert().EqualError(err, tc.err.Error())
+		})
+	}
+}
+
+func (suite *YamlWalkerTestSuite) TestAsSlice() {
+	y := &YamlWalker{
+		data: map[string]*YamlWalker{
+			"parent": {
+				data: []*YamlWalker{
+					{data: 1},
+					{data: 2},
+				},
+			},
+		},
+		keys: []yamlKey{
+			{name: "parent"},
+		},
+	}
+
+	tests := []struct {
+		name   string
+		path   string
+		count  int
+		values []int
+	}{
+		{
+			name:   "valid",
+			path:   "parent",
+			count:  2,
+			values: []int{1, 2},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		suite.Run(tc.name, func() {
+			s, err := y.AsSlice(tc.path)
+			suite.Assert().Nil(err)
+			suite.Assert().Equal(tc.count, len(s))
+			for i := range tc.values {
+				v, found := s[i].data.(int)
+				suite.Assert().True(found)
+				suite.Assert().Equal(tc.values[i], v)
+			}
+		})
+	}
+
+	errTests := []struct {
+		name string
+		path string
+		err  error
+	}{
+		{
+			name: "invalid type",
+			path: "",
+			err:  ErrInvalidType,
+		},
+		{
+			name: "not found as root",
+			path: "invalid",
+			err:  ErrNotFound,
+		},
+	}
+
+	for _, tc := range errTests {
+		tc := tc
+		suite.Run(tc.name, func() {
+			_, err := y.AsSlice(tc.path)
+			suite.Assert().EqualError(err, tc.err.Error())
+		})
+	}
+}
+
+func (suite *YamlWalkerTestSuite) TestInsert() {
+	getData := func() *YamlWalker {
+		return &YamlWalker{
+			data: map[string]*YamlWalker{
+				"parent": {
+					data: []*YamlWalker{
+						{data: 1},
+						{data: 2},
+					},
+				},
+			},
+			keys: []yamlKey{
+				{name: "parent"},
+			},
+		}
+	}
+
+	tests := []struct {
+		index  int
+		values []int
+	}{
+		{
+			index:  0,
+			values: []int{3, 1, 2},
+		},
+		{
+			index:  1,
+			values: []int{1, 3, 2},
+		},
+		{
+			index:  2,
+			values: []int{1, 2, 3},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		suite.Run(fmt.Sprintf("index:%d", tc.index), func() {
+			y := getData()
+			node := &YamlWalker{data: 3}
+			err := y.Insert("parent", tc.index, node)
+			suite.Assert().Nil(err)
+			s, found := y.data.([]*YamlWalker)
+			suite.Assert().True(found)
+			suite.Assert().Equal(3, len(s))
+			v1 := s[0]
+			i1, found := v1.data.(int)
+			suite.Assert().True(found)
+			suite.Assert().Equal(tc.values[0], i1)
+			v2 := s[1]
+			i2, found := v2.data.(int)
+			suite.Assert().True(found)
+			suite.Assert().Equal(tc.values[1], i2)
+			v3 := s[2]
+			i3, found := v3.data.(int)
+			suite.Assert().True(found)
+			suite.Assert().Equal(tc.values[2], i3)
+		})
+	}
+
+	y := getData()
+	err := y.Insert("invalid", 1, &YamlWalker{})
+	suite.Assert().EqualError(err, ErrNotFound.Error())
+
+	y = getData()
+	err = y.Insert("", 1, &YamlWalker{})
+	suite.Assert().EqualError(err, ErrInvalidType.Error())
+
+	y = getData()
+	err = y.Insert("parent", -1, &YamlWalker{})
+	suite.Assert().EqualError(err, ErrInvalidRange.Error())
+
+	y = getData()
+	err = y.Insert("parent", 10, &YamlWalker{})
+	suite.Assert().EqualError(err, ErrInvalidRange.Error())
+}
+
+func (suite *YamlWalkerTestSuite) TestRemove() {
+	getData := func() *YamlWalker {
+		return &YamlWalker{
+			data: map[string]*YamlWalker{
+				"parent": {
+					data: []*YamlWalker{
+						{data: 1},
+						{data: 2},
+						{data: 3},
+					},
+				},
+			},
+			keys: []yamlKey{
+				{name: "parent"},
+			},
+		}
+	}
+
+	tests := []struct {
+		count  int
+		index  int
+		values []int
+	}{
+		{
+			count:  2,
+			index:  0,
+			values: []int{2, 3},
+		},
+		{
+			count:  2,
+			index:  1,
+			values: []int{1, 3},
+		},
+		{
+			count:  2,
+			index:  2,
+			values: []int{1, 2},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		suite.Run(fmt.Sprintf("index:%d", tc.index), func() {
+			y := getData()
+			err := y.Remove("parent", tc.index)
+			suite.Assert().Nil(err)
+			m, found := y.data.(map[string]*YamlWalker)
+			suite.Assert().True(found)
+			s, found := m["parent"].data.([]*YamlWalker)
+			suite.Assert().True(found)
+			suite.Assert().Equal(tc.count, len(s))
+			v1 := s[0]
+			i1, found := v1.data.(int)
+			suite.Assert().True(found)
+			suite.Assert().Equal(tc.values[0], i1)
+			v2 := s[1]
+			i2, found := v2.data.(int)
+			suite.Assert().True(found)
+			suite.Assert().Equal(tc.values[1], i2)
+		})
+	}
+
+	y := getData()
+	err := y.Remove("invalid", 1)
+	suite.Assert().EqualError(err, ErrNotFound.Error())
+
+	y = getData()
+	err = y.Remove("", 1)
+	suite.Assert().EqualError(err, ErrInvalidType.Error())
+
+	y = getData()
+	err = y.Remove("parent", -1)
+	suite.Assert().EqualError(err, ErrInvalidRange.Error())
+
+	y = getData()
+	err = y.Remove("parent", 10)
+	suite.Assert().EqualError(err, ErrInvalidRange.Error())
+}
+
 func (suite *YamlWalkerTestSuite) TestFindNode() {
 	y := &YamlWalker{}
 	_, err := y.findNode([]string{})
@@ -386,7 +698,15 @@ func (suite *YamlWalkerTestSuite) TestFindNode() {
 		},
 	}
 
-	n, err := y.findNode([]string{"first-0"})
+	w := y.data.(map[string]*YamlWalker)["first-0"]
+	n, err := w.findNode([]string{})
+	suite.Assert().Nil(err)
+	suite.Assert().NotNil(n)
+	suite.Assert().Equal(2, len(n.keys))
+	suite.Assert().Equal("first-1", n.keys[0].name)
+	suite.Assert().Equal("second-1", n.keys[1].name)
+
+	n, err = y.findNode([]string{"first-0"})
 	suite.Assert().Nil(err)
 	suite.Assert().NotNil(n)
 	suite.Assert().Equal(2, len(n.keys))
@@ -426,6 +746,94 @@ func (suite *YamlWalkerTestSuite) TestFindNode() {
 	_, err = y.findNode([]string{"first-0", "invalid"})
 	suite.Assert().EqualError(err, ErrNotFound.Error())
 	_, err = y.findNode([]string{"second-0", "second-1", "second-2"})
+	suite.Assert().EqualError(err, ErrInvalidType.Error())
+}
+
+func (suite *YamlWalkerTestSuite) TestFindParent() {
+	y := &YamlWalker{}
+	_, err := y.findParent([]string{})
+	suite.Assert().EqualError(err, ErrKeyMismatch.Error())
+
+	y = &YamlWalker{
+		data: map[string]*YamlWalker{
+			"first-0": {
+				data: map[string]*YamlWalker{
+					"first-1": {
+						data: map[string]*YamlWalker{
+							"first-2": {
+								data: 1,
+							},
+						},
+						keys: []yamlKey{
+							{name: "first-2"},
+						},
+					},
+					"second-1": {
+						data: 4,
+					},
+				},
+				keys: []yamlKey{
+					{name: "first-1"},
+					{name: "second-1"},
+				},
+			},
+			"second-0": {
+				data: 2,
+			},
+			"third-0": {
+				data: 3,
+			},
+		},
+		keys: []yamlKey{
+			{name: "first-0"},
+			{name: "second-0"},
+			{name: "third-0"},
+		},
+	}
+
+	w := y.data.(map[string]*YamlWalker)["first-0"]
+	_, err = w.findParent([]string{})
+	suite.Assert().EqualError(err, ErrKeyMismatch.Error())
+
+	n, err := y.findParent([]string{"first-0"})
+	suite.Assert().Nil(err)
+	suite.Assert().NotNil(n)
+	suite.Assert().Equal(3, len(n.keys))
+	suite.Assert().Equal("first-0", n.keys[0].name)
+	suite.Assert().Equal("second-0", n.keys[1].name)
+	suite.Assert().Equal("third-0", n.keys[2].name)
+
+	n, err = y.findParent([]string{"second-0"})
+	suite.Assert().Nil(err)
+	suite.Assert().NotNil(n)
+	suite.Assert().Equal(3, len(n.keys))
+	suite.Assert().Equal("first-0", n.keys[0].name)
+	suite.Assert().Equal("second-0", n.keys[1].name)
+	suite.Assert().Equal("third-0", n.keys[2].name)
+
+	n, err = y.findParent([]string{"third-0"})
+	suite.Assert().Nil(err)
+	suite.Assert().NotNil(n)
+	suite.Assert().Equal(3, len(n.keys))
+	suite.Assert().Equal("first-0", n.keys[0].name)
+	suite.Assert().Equal("second-0", n.keys[1].name)
+	suite.Assert().Equal("third-0", n.keys[2].name)
+
+	n, err = y.findParent([]string{"first-0", "first-1"})
+	suite.Assert().Nil(err)
+	suite.Assert().NotNil(n)
+	suite.Assert().Equal(2, len(n.keys))
+	suite.Assert().Equal("first-1", n.keys[0].name)
+	suite.Assert().Equal("second-1", n.keys[1].name)
+
+	n, err = y.findParent([]string{"first-0", "not-exists"})
+	suite.Assert().Nil(err)
+	suite.Assert().NotNil(n)
+	suite.Assert().Equal(2, len(n.keys))
+	suite.Assert().Equal("first-1", n.keys[0].name)
+	suite.Assert().Equal("second-1", n.keys[1].name)
+
+	_, err = y.findParent([]string{"second-0", "second-1", "second-2"})
 	suite.Assert().EqualError(err, ErrInvalidType.Error())
 }
 
