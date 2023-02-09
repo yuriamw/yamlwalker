@@ -29,10 +29,16 @@ const (
 	Separator string = "."
 )
 
-// NewYamlWalker creates new YamlWalker node instance
-func NewYamlWalker() *YamlWalker {
+// NewYamlWalker creates new YamlWalker node instance with a specified dataStyle
+// Default dataStyle = 0.
+func NewYamlWalker(dataStyle ...yaml.Style) *YamlWalker {
+	style := yaml.Style(0)
+	if len(dataStyle) > 0 {
+		style = dataStyle[0]
+	}
 	return &YamlWalker{
-		keys: make([]yamlKey, 0),
+		style: style,
+		keys:  make([]yamlKey, 0),
 	}
 }
 
