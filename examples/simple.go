@@ -31,11 +31,6 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Printf("\n=========================\n\n")
-
-	fmt.Printf("W:%T:%+v\n", yw, yw)
-	fmt.Printf("V:%T:%+v\n", yw.Value(), yw.Value())
-
 	next := true
 	for next {
 		next = false
@@ -56,7 +51,7 @@ func main() {
 		for _, v := range srv {
 			m := v.Value().(map[string]*yamlwalker.YamlWalker)
 			url := m["url"].Value().(string)
-			fmt.Printf("S:%T:%+v\n", url, url)
+			fmt.Printf("S:%+v\n", url)
 		}
 	}
 
@@ -65,9 +60,9 @@ func main() {
 	fmt.Printf("G:%+v\n", yw.GetValue("info.contact.name"))
 	fmt.Printf("G:%+v\n", yw.GetValue("not exists"))
 
-	fmt.Printf("Update node '%s' value... ", "info.contact.name")
+	fmt.Printf("\nUpdate node '%s' value\n", "info.contact.name")
 	yw.SetValue("info.contact.name", "My Cool Company")
-	fmt.Printf("%+v\n", yw.GetValue("info.contact.name"))
+	fmt.Printf("info.contact.name:%+v\n", yw.GetValue("info.contact.name"))
 
 	out, err := yaml.Marshal(yw)
 	if err != nil {

@@ -26,6 +26,7 @@ type yamlKey struct {
 }
 
 const (
+	// Symbol to separate elements in node path
 	Separator string = "."
 )
 

@@ -45,7 +45,7 @@ func main() {
 		panic("marshal failed")
 	}
 
-	fmt.Printf("--\n%v--\n", string(data))
+	fmt.Printf("---\n%v...\n", string(data))
 
 	walker.SetValue("third.child-1", "Child 1 value changed")
 
@@ -54,5 +54,5 @@ func main() {
 		panic("marshal failed")
 	}
 
-	fmt.Printf("--\n%v--\n", string(data))
+	fmt.Printf("---\n%v...\n", string(data))
 }
