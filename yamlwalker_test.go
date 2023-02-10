@@ -602,7 +602,9 @@ func (suite *YamlWalkerTestSuite) TestInsert() {
 			node := &YamlWalker{data: 3}
 			err := y.Insert("parent", tc.index, node)
 			suite.Assert().Nil(err)
-			s, found := y.data.([]*YamlWalker)
+			m, found := y.data.(map[string]*YamlWalker)
+			suite.Assert().True(found)
+			s, found := m["parent"].data.([]*YamlWalker)
 			suite.Assert().True(found)
 			suite.Assert().Equal(3, len(s))
 			v1 := s[0]

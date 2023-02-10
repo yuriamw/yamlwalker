@@ -126,12 +126,12 @@ func (walker *YamlWalker) insert(parts []string, index int, node *YamlWalker) er
 	}
 
 	if len(s) == index { // nil or empty slice or after last element
-		walker.data = append(s, node)
+		w.data = append(s, node)
 		return nil
 	}
 	s = append(s[:index+1], s[index:]...) // index < len(a)
 	s[index] = node
-	walker.data = s
+	w.data = s
 
 	return nil
 }

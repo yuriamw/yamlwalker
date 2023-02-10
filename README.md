@@ -191,6 +191,13 @@ func main() {
 	fmt.Printf("G:%+v\n", yw.GetValue("info.contact.name"))
 	fmt.Printf("G:%+v\n", yw.GetValue("not exists"))
 
+	url := yamlwalker.NewYamlWalker()
+	url.Update("http://example.com")
+	err = yw.Insert("servers", 0, url)
+	if err != nil {
+		panic(err)
+	}
+
 	fmt.Printf("\nUpdate node '%s' value\n", "info.contact.name")
 	yw.SetValue("info.contact.name", "My Cool Company")
 	fmt.Printf("info.contact.name:%+v\n", yw.GetValue("info.contact.name"))
@@ -231,6 +238,7 @@ info:
     x-ExtensionBool: true
     x-String: api
 servers:
+    - http://example.com
     - url: '{protocol}://localhost:{port}/api/v1.0'
       variables:
         protocol:
