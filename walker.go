@@ -45,6 +45,51 @@ func (walker *YamlWalker) asSlice(parts []string) (children []*YamlWalker, err e
 	return
 }
 
+func (walker *YamlWalker) asString(parts []string) (value string, err error) {
+	w, err := walker.findNode(parts)
+	if err != nil {
+		return
+	}
+
+	s, ok := w.data.(string)
+	if !ok {
+		err = ErrInvalidType
+		return
+	}
+	value = s
+	return
+}
+
+func (walker *YamlWalker) asInt(parts []string) (value int, err error) {
+	w, err := walker.findNode(parts)
+	if err != nil {
+		return
+	}
+
+	s, ok := w.data.(int)
+	if !ok {
+		err = ErrInvalidType
+		return
+	}
+	value = s
+	return
+}
+
+func (walker *YamlWalker) asBool(parts []string) (value bool, err error) {
+	w, err := walker.findNode(parts)
+	if err != nil {
+		return
+	}
+
+	s, ok := w.data.(bool)
+	if !ok {
+		err = ErrInvalidType
+		return
+	}
+	value = s
+	return
+}
+
 func (walker *YamlWalker) remove(parts []string, index int) error {
 	w, err := walker.findNode(parts)
 	if err != nil {
