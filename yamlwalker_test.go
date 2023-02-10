@@ -658,7 +658,12 @@ func (suite *YamlWalkerTestSuite) TestRemove() {
 
 func (suite *YamlWalkerTestSuite) TestFindNode() {
 	y := &YamlWalker{}
-	_, err := y.findNode([]string{})
+	n, err := y.findNode([]string{})
+	suite.Assert().Nil(err)
+	suite.Assert().Equal(y, n)
+
+	y = &YamlWalker{data: 0}
+	_, err = y.findNode([]string{"item"})
 	suite.Assert().EqualError(err, ErrInvalidType.Error())
 
 	y = &YamlWalker{
@@ -699,7 +704,7 @@ func (suite *YamlWalkerTestSuite) TestFindNode() {
 	}
 
 	w := y.data.(map[string]*YamlWalker)["first-0"]
-	n, err := w.findNode([]string{})
+	n, err = w.findNode([]string{})
 	suite.Assert().Nil(err)
 	suite.Assert().NotNil(n)
 	suite.Assert().Equal(2, len(n.keys))
