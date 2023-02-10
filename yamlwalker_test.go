@@ -500,6 +500,66 @@ func (suite *YamlWalkerTestSuite) TestAsSlice() {
 	}
 }
 
+func (suite *YamlWalkerTestSuite) TestAsType() {
+	y := &YamlWalker{
+		data: map[string]*YamlWalker{
+			"str": {
+				data: "string value",
+			},
+			"bool": {
+				data: true,
+			},
+			"int": {
+				data: 1,
+			},
+		},
+		keys: []yamlKey{
+			{name: "str"},
+			{name: "bool"},
+			{name: "int"},
+		},
+	}
+
+	s, err := y.AsString("str")
+	suite.Assert().Nil(err)
+	suite.Assert().Equal("string value", s)
+
+	s, err = y.AsString("bool")
+	suite.Assert().EqualError(err, ErrInvalidType.Error())
+
+	s, err = y.AsString("int")
+	suite.Assert().EqualError(err, ErrInvalidType.Error())
+
+	s, err = y.AsString("invalud")
+	suite.Assert().EqualError(err, ErrNotFound.Error())
+
+	i, err := y.AsInt("str")
+	suite.Assert().EqualError(err, ErrInvalidType.Error())
+
+	i, err = y.AsInt("int")
+	suite.Assert().Nil(err)
+	suite.Assert().Equal(1, i)
+
+	i, err = y.AsInt("bool")
+	suite.Assert().EqualError(err, ErrInvalidType.Error())
+
+	i, err = y.AsInt("invalud")
+	suite.Assert().EqualError(err, ErrNotFound.Error())
+
+	b, err := y.AsBool("str")
+	suite.Assert().EqualError(err, ErrInvalidType.Error())
+
+	b, err = y.AsBool("int")
+	suite.Assert().EqualError(err, ErrInvalidType.Error())
+
+	b, err = y.AsBool("bool")
+	suite.Assert().Nil(err)
+	suite.Assert().Equal(true, b)
+
+	b, err = y.AsBool("invalud")
+	suite.Assert().EqualError(err, ErrNotFound.Error())
+}
+
 func (suite *YamlWalkerTestSuite) TestInsert() {
 	getData := func() *YamlWalker {
 		return &YamlWalker{

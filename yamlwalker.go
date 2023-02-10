@@ -84,6 +84,27 @@ func (walker *YamlWalker) AsSlice(path string) (children []*YamlWalker, err erro
 	return walker.asSlice(walker.splitPath(path))
 }
 
+// AsString returns tyhe value of the node specified by path as string.
+// If the node value is string it is returned and err set to nil.
+// If the node is not a string err set to ErrInvalidType.
+func (walker *YamlWalker) AsString(path string) (string, error) {
+	return walker.asString(walker.splitPath(path))
+}
+
+// AsInt returns the value of the node specified by path as int.
+// If the node value is int it is returned and err set to nil.
+// If the node is not an int err set to ErrInvalidType.
+func (walker *YamlWalker) AsInt(path string) (int, error) {
+	return walker.asInt(walker.splitPath(path))
+}
+
+// AsBool returns the value of the node specified by path as bool.
+// If the node value is bool it is returned and err set to nil.
+// If the node is not a bool err set to ErrInvalidType.
+func (walker *YamlWalker) AsBool(path string) (bool, error) {
+	return walker.asBool(walker.splitPath(path))
+}
+
 // Remove removes the item at the index from the slice of children.
 // If the node specified by path is yaml.SequenceNode the item at the index is removed
 // and err set to nil otherwise err set to ErrInvalidType.
