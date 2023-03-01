@@ -63,6 +63,16 @@ func (walker *YamlWalker) MarshalYAML() (interface{}, error) {
 	return buffer, err
 }
 
+// Style returns current node style
+func (walker *YamlWalker) Style() yaml.Style {
+	return walker.style
+}
+
+// SetStyle sets current node style
+func (walker *YamlWalker) SetStyle(style yaml.Style) {
+	walker.style = style
+}
+
 // AsMap returns children of the node specified by path
 // as map if node is yaml.MappingNode and err set to nil.
 // If path does not exists err set to ErrNotFound.
